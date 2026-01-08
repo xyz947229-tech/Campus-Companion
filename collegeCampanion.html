@@ -14,10 +14,6 @@
         .sidebar-link { transition: 0.3s; cursor: pointer; }
         .sidebar-link:hover { background: #2563eb; }
         .active-tab { background: #2563eb; border-left: 4px solid #fff; }
-        .chat-container { height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; padding: 1rem; }
-        .bubble { max-width: 80%; padding: 0.75rem 1rem; border-radius: 1rem; font-size: 0.875rem; line-height: 1.25rem; }
-        .bubble-ai { background: #eff6ff; color: #1e40af; align-self: flex-start; border-bottom-left-radius: 0; border: 1px solid #dbeafe; }
-        .bubble-user { background: #1e3a8a; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
     </style></head><body ng-controller="MainController">
 
     <div ng-if="!isLoggedIn" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-90">
@@ -32,7 +28,7 @@
     </div>
 
     <div class="flex min-h-screen" ng-if="isLoggedIn">
-        <aside class="w-64 navy-bg text-white hidden md:block">
+        <aside class="w-64 navy-bg text-white hidden md:block relative">
             <div class="p-6 text-xl font-bold border-b border-blue-800">CAMPUS COMPANION</div>
             <nav class="mt-6">
                 <div ng-repeat="tab in tabs" 
@@ -86,15 +82,30 @@
                             <div class="flex justify-between items-start">
                                 <div>
                                     <p class="text-gray-500 text-xs font-bold uppercase tracking-wider">Net Balance</p>
-                                    <h3 class="text-2xl font-bold text-green-700">{{ (monthlyBudget - getTotalExpenses()) | currency:"₹"}}</h3>
+                                    <h3 class="text-2xl font-bold" ng-class="(monthlyBudget - getTotalExpenses()) < 500 ? 'text-red-600' : 'text-green-700'">
+                                        {{ (monthlyBudget - getTotalExpenses()) | currency:"₹"}}
+                                    </h3>
                                 </div>
                                 <i class="fas fa-wallet text-green-200 text-2xl"></i>
                             </div>
                         </div>
                     </div>
+
+                    <div class="card p-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-500 uppercase">Monthly Allowance Usage</span>
+                            <span class="text-xs font-bold text-gray-700">{{ (getTotalExpenses() / monthlyBudget * 100).toFixed(1) }}% Spent</span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-2">
+                            <div class="h-2 rounded-full transition-all duration-500" 
+                                 ng-class="(getTotalExpenses() / monthlyBudget) > 0.8 ? 'bg-red-500' : 'bg-blue-600'"
+                                 ng-style="{'width': (getTotalExpenses() / monthlyBudget * 100) + '%'}">
+                            </div>
+                        </div>
+                    </div>
                     
                     <div class="card p-6">
-                        <h4 class="font-bold mb-4 navy-text flex items-center"><i class="fas fa-plus-circle mr-2"></i>New Transaction</h4>
+                        <h4 class="font-bold mb-4 navy-text flex items-center"><i class="fas fa-plus-circle mr-2"></i>Log New Expenditure</h4>
                         <form ng-submit="addExpense()" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <label class="text-[10px] font-bold text-gray-400 block mb-1">ITEM/VENDOR</label>
@@ -143,62 +154,11 @@
                                     </button>
                                 </td>
                             </tr>
+                            <tr ng-if="expenses.length === 0">
+                                <td colspan="5" class="p-10 text-center text-gray-400 italic">No transactions found.</td>
+                            </tr>
                         </tbody>
                     </table>
-                </div>
-
-                <div ng-show="currentView === 'ai_counselor'" class="max-w-4xl mx-auto space-y-6">
-                    <div class="card p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h3 class="text-2xl font-bold mb-2">Campus AI Counselor</h3>
-                                <p class="text-blue-100 text-sm">Powered by Advanced NLP logic. Ask anything under the sun.</p>
-                            </div>
-                            <i class="fas fa-brain text-4xl opacity-30"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="card flex flex-col">
-                        <div class="chat-container" id="chatWindow">
-                            <div ng-repeat="msg in chatHistory" class="bubble" ng-class="msg.role === 'ai' ? 'bubble-ai' : 'bubble-user'">
-                                <p class="whitespace-pre-line">{{msg.text}}</p>
-                            </div>
-                            <div ng-if="isTyping" class="bubble bubble-ai italic text-gray-400 flex items-center gap-2">
-                                <i class="fas fa-circle-notch fa-spin"></i> Analyzing your query...
-                            </div>
-                        </div>
-                        <div class="p-4 border-t bg-gray-50 flex gap-4">
-                            <input type="text" ng-model="userQuery" ng-keypress="($event.which === 13)?askAI():null" placeholder="Ask me about stress, career, or general knowledge..." class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                            <button ng-click="askAI()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div ng-show="currentView === 'mess'" class="space-y-6">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-lg font-bold text-slate-700">Today's Menu: <span class="text-blue-600">{{currentDay}}</span></h3>
-                        <button ng-click="submitMessFeedback()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg hover:bg-green-700">
-                            <i class="fas fa-file-export mr-2"></i>Submit Feedback to Committee
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div ng-repeat="mealType in ['Breakfast', 'Lunch', 'Dinner']" class="card overflow-hidden border-t-4" ng-class="{'border-yellow-400': mealType=='Breakfast', 'border-blue-500': mealType=='Lunch', 'border-indigo-800': mealType=='Dinner'}">
-                            <div class="p-4 bg-slate-50 border-b font-bold navy-text flex justify-between">
-                                <span>{{mealType}}</span>
-                                <i class="fas fa-check-circle text-green-500" ng-if="weeklyMenu[currentDay][mealType].userLiked"></i>
-                            </div>
-                            <div class="p-6">
-                                <div class="text-xl font-bold mb-2">{{ weeklyMenu[currentDay][mealType].dish }}</div>
-                                <div class="flex items-center justify-between pt-4 border-t">
-                                    <button ng-click="likeMeal(currentDay, mealType)" class="text-sm font-bold transition flex items-center gap-2" ng-class="weeklyMenu[currentDay][mealType].userLiked ? 'text-pink-600' : 'text-gray-400 hover:text-pink-400'">
-                                        <i class="fas fa-heart"></i> {{ weeklyMenu[currentDay][mealType].userLiked ? 'Wishlisted' : 'Add to Wishlist' }}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <div ng-show="currentView === 'canteen'" class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -209,13 +169,125 @@
                             <button ng-click="orderFood(menu)" class="bg-blue-100 text-blue-600 px-3 py-1 rounded text-sm hover:bg-blue-600 hover:text-white transition">Order</button>
                         </div>
                     </div>
+                    <div class="card p-6">
+                        <h4 class="font-bold mb-4">Active Orders</h4>
+                        <div ng-repeat="order in activeOrders" class="mb-4 p-4 bg-blue-50 rounded-lg relative overflow-hidden">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h5 class="font-bold">{{order.item}}</h5>
+                                    <p class="text-xs text-gray-500 italic">Status: {{order.status}}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs font-bold text-blue-600">Est. Time</p>
+                                    <p class="text-xl font-bold">{{order.timeRemaining}}m</p>
+                                </div>
+                            </div>
+                            <div class="mt-2 h-1 bg-gray-200 w-full">
+                                <div class="h-1 bg-blue-600" ng-style="{'width': (100 - (order.timeRemaining * 5)) + '%'}"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div ng-show="currentView === 'mess'" class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-slate-700">Today's Menu: <span class="text-blue-600">{{currentDay}}</span></h3>
+                        <div class="flex gap-2">
+                            <button ng-click="sendMessFeedback()" class="text-xs font-bold text-blue-600 bg-blue-100 px-3 py-2 rounded hover:bg-blue-200 transition">
+                                <i class="fas fa-paper-plane mr-1"></i> Send Feedback to Owner
+                            </button>
+                            <span class="text-xs font-bold text-orange-600 bg-orange-100 px-3 py-2 rounded flex items-center">Menu Shuffle based on Wishlist</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div ng-repeat="mealType in ['Breakfast', 'Lunch', 'Dinner']" class="card overflow-hidden border-t-4" ng-class="{'border-yellow-400': mealType=='Breakfast', 'border-blue-500': mealType=='Lunch', 'border-indigo-800': mealType=='Dinner'}">
+                            <div class="p-4 bg-slate-50 border-b font-bold navy-text">{{mealType}}</div>
+                            <div class="p-6">
+                                <div class="text-xl font-bold mb-2">{{ weeklyMenu[currentDay][mealType].dish }}</div>
+                                <p class="text-sm text-gray-500 mb-6">{{ weeklyMenu[currentDay][mealType].description }}</p>
+                                <div class="flex items-center justify-between pt-4 border-t">
+                                    <button ng-click="likeMeal(currentDay, mealType)" class="text-sm font-bold" ng-class="weeklyMenu[currentDay][mealType].userLiked ? 'text-pink-600' : 'text-gray-400'">
+                                        <i class="fas fa-heart"></i> {{ weeklyMenu[currentDay][mealType].userLiked ? 'Wishlisted' : 'Add to Wishlist' }}
+                                    </button>
+                                    <span class="text-xs font-bold text-slate-400">{{ weeklyMenu[currentDay][mealType].likes }} Likes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div ng-show="currentView === 'study'" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div ng-repeat="course in courses" class="card p-6 border-t-4 border-blue-600">
                             <h4 class="text-lg font-bold navy-text mb-2">{{course.name}}</h4>
-                            <button ng-click="askProfessor(course.name)" class="w-full bg-blue-600 text-white text-sm font-bold py-2 rounded">Ask Professor</button>
+                            <p class="text-xs text-gray-500 mb-4 h-10">{{course.desc}}</p>
+                            <div class="space-y-2">
+                                <a href="{{course.infoUrl}}" target="_blank" class="w-full block text-center bg-gray-100 text-gray-700 text-sm font-bold py-2 rounded">Course Info</a>
+                                <button ng-click="askProfessor(course.name)" class="w-full bg-blue-600 text-white text-sm font-bold py-2 rounded">Ask Professor</button>
+                                <button ng-click="downloadNotes(course.name)" class="w-full border border-blue-600 text-blue-600 text-sm font-bold py-2 rounded">Revision Notes</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div ng-show="currentView === 'emails'" class="space-y-4">
+                    <div class="flex justify-between items-center bg-blue-50 p-4 rounded-lg">
+                        <p class="text-sm font-medium text-blue-800">Emails are automatically sorted by Priority (High to Normal)</p>
+                        <i class="fas fa-sort-amount-down text-blue-600"></i>
+                    </div>
+                    <div ng-repeat="email in emails | orderBy:'-prioValue'" class="card p-4 flex items-center justify-between border-l-4" 
+                         ng-class="{'border-red-500': email.priority=='High', 'border-orange-400': email.priority=='Medium', 'border-green-400': email.priority=='Normal'}">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400">{{email.sender}} • {{email.time}}</p>
+                            <h4 class="font-semibold">{{email.subject}}</h4>
+                        </div>
+                        <span class="text-xs font-bold px-3 py-1 rounded-full"
+                              ng-class="{'bg-red-100 text-red-700': email.priority=='High', 'bg-orange-100 text-orange-700': email.priority=='Medium', 'bg-green-100 text-green-700': email.priority=='Normal'}">
+                            {{email.priority}}
+                        </span>
+                    </div>
+                </div>
+
+                <div ng-show="currentView === 'events'" class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="card p-6 lg:col-span-1 border-t-4 border-purple-500">
+                            <h4 class="font-bold mb-4 text-purple-700">Add Personal Event</h4>
+                            <form ng-submit="addUserEvent()" class="space-y-4">
+                                <input type="text" ng-model="newEvent.title" placeholder="Event Title" class="w-full border p-2 rounded text-sm" required>
+                                <div class="flex gap-2">
+                                    <input type="text" ng-model="newEvent.day" placeholder="Day (e.g. 15)" class="w-1/2 border p-2 rounded text-sm" required>
+                                    <select ng-model="newEvent.month" class="w-1/2 border p-2 rounded text-sm">
+                                        <option value="JAN">JAN</option><option value="FEB">FEB</option>
+                                        <option value="MAR">MAR</option><option value="APR">APR</option>
+                                        <option value="MAY">MAY</option><option value="JUN">JUN</option>
+                                        <option value="JUL">JUL</option><option value="AUG">AUG</option>
+                                        <option value="SEP">SEP</option><option value="OCT">OCT</option>
+                                        <option value="NOV">NOV</option><option value="DEC">DEC</option>
+                                    </select>
+                                </div>
+                                <input type="text" ng-model="newEvent.time" placeholder="Time (e.g. 2:00 PM)" class="w-full border p-2 rounded text-sm" required>
+                                <button class="w-full bg-purple-600 text-white p-2 rounded font-bold hover:bg-purple-700">Save Event</button>
+                            </form>
+                        </div>
+                        <div class="lg:col-span-2 space-y-4">
+                            <h3 class="font-bold navy-text">Upcoming Events</h3>
+                            <div ng-repeat="ev in events" class="card p-4 flex gap-4 transition hover:bg-slate-50">
+                                <div class="text-center p-2 rounded min-w-[60px]" 
+                                     ng-class="ev.type === 'Academic' ? 'bg-blue-100' : 'bg-purple-100'">
+                                    <p class="text-xl font-black" ng-class="ev.type === 'Academic' ? 'text-blue-700' : 'text-purple-700'">{{ev.day}}</p>
+                                    <p class="text-xs font-bold">{{ev.month}}</p>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between">
+                                        <p class="font-bold">{{ev.title}}</p>
+                                        <span class="text-[10px] font-bold uppercase px-2 py-1 rounded" 
+                                              ng-class="ev.type === 'Academic' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'">
+                                            {{ev.type}}
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-gray-500"><i class="far fa-clock mr-1"></i> {{ev.time}}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -226,7 +298,7 @@
 
     <script>
         var app = angular.module('campusApp', []);
-        app.controller('MainController', function($scope, $timeout) {
+        app.controller('MainController', function($scope) {
             $scope.isLoggedIn = false;
             $scope.currentView = 'expenses';
             $scope.feesDue = 1250.00;
@@ -236,7 +308,6 @@
 
             $scope.tabs = [
                 { id: 'expenses', name: 'Expense Tracker', icon: 'fa-wallet' },
-                { id: 'ai_counselor', name: 'AI Counselor', icon: 'fa-robot' },
                 { id: 'mess', name: 'Mess Menu', icon: 'fa-utensils' },
                 { id: 'study', name: 'Study Hub', icon: 'fa-book-open' },
                 { id: 'emails', name: 'Smart Inbox', icon: 'fa-envelope' },
@@ -244,100 +315,104 @@
                 { id: 'events', name: 'Events/Calendar', icon: 'fa-calendar-alt' }
             ];
 
-            // AI Counselor Logic with simulated Deep Thinking
-            $scope.chatHistory = [{ role: 'ai', text: "Hello! I am your Campus Companion AI. I can act as your mental health counselor, academic guide, or general knowledge base. How can I help you today?" }];
-            $scope.userQuery = "";
-            $scope.isTyping = false;
+            // DATA
+            $scope.courses = [
+                { name: 'Data Structures', desc: 'Core logic and algorithms.', infoUrl: 'https://www.geeksforgeeks.org/data-structures/' },
+                { name: 'Operating Systems', desc: 'Process and memory management.', infoUrl: 'https://en.wikipedia.org/wiki/Operating_system' },
+                { name: 'Database Systems', desc: 'SQL and NoSQL management.', infoUrl: 'https://en.wikipedia.org/wiki/Database' },
+                { name: 'Cyber Security', desc: 'Information protection.', infoUrl: 'https://en.wikipedia.org/wiki/Computer_security' },
+                { name: 'Artificial Intelligence', desc: 'Neural networks and ML.', infoUrl: 'https://en.wikipedia.org/wiki/Artificial_intelligence' }
+            ];
 
-            $scope.askAI = function() {
-                if(!$scope.userQuery) return;
-                let query = $scope.userQuery;
-                $scope.chatHistory.push({ role: 'user', text: query });
-                $scope.userQuery = "";
-                $scope.isTyping = true;
-
-                $timeout(function() {
-                    let response = "";
-                    let q = query.toLowerCase();
-
-                    // Logic for Mental Health / Counselor
-                    if(q.includes("sad") || q.includes("depressed") || q.includes("stress")) {
-                        response = "I'm listening. It's completely normal to feel this way under academic pressure. \n\n1. Take 5 deep breaths.\n2. Remember you are more than your grades.\n3. Should I help you plan a break schedule?";
-                    } 
-                    // Logic for General Knowledge (Ask anything under the sun)
-                    else if(q.includes("what is") || q.includes("how to") || q.includes("why")) {
-                        response = "Based on my internal database: '" + query + "' is a great question. While I am a campus AI, I suggest looking into this via research papers for deep technicality. Generally, it refers to the core concepts of exploration and logic!";
-                    }
-                    else if(q.includes("weather") || q.includes("time")) {
-                        response = "Currently, it is " + new Date().toLocaleTimeString() + ". For weather updates, I recommend checking the local campus station, but it looks like a productive day ahead!";
-                    }
-                    else {
-                        response = "I've processed your request. As your campus counselor, I'd say: stay curious and keep exploring. Is there anything specific about your studies or mental wellbeing you'd like to discuss?";
-                    }
-
-                    $scope.chatHistory.push({ role: 'ai', text: response });
-                    $scope.isTyping = false;
-                    
-                    $timeout(() => {
-                        let chat = document.getElementById('chatWindow');
-                        if(chat) chat.scrollTop = chat.scrollHeight;
-                    }, 50);
-                }, 800);
+            $scope.weeklyMenu = {
+                'Monday': { 'Breakfast': { dish: 'Poha', likes: 45 }, 'Lunch': { dish: 'Dal Rice', likes: 12 }, 'Dinner': { dish: 'Paneer', likes: 89 } },
+                'Tuesday': { 'Breakfast': { dish: 'Paratha', likes: 67 }, 'Lunch': { dish: 'Rajma', likes: 92 }, 'Dinner': { dish: 'Mix Veg', likes: 31 } },
+                'Wednesday': { 'Breakfast': { dish: 'Idli', likes: 50 }, 'Lunch': { dish: 'Biryani', likes: 110 }, 'Dinner': { dish: 'Kadhi', likes: 42 } },
+                'Thursday': { 'Breakfast': { dish: 'Sandwich', likes: 38 }, 'Lunch': { dish: 'Chole', likes: 125 }, 'Dinner': { dish: 'Gobi', likes: 20 } },
+                'Friday': { 'Breakfast': { dish: 'Uttapam', likes: 44 }, 'Lunch': { dish: 'Black Dal', likes: 55 }, 'Dinner': { dish: 'Egg Curry', likes: 78 } },
+                'Saturday': { 'Breakfast': { dish: 'Puri Sabji', likes: 95 }, 'Lunch': { dish: 'Khichdi', likes: 10 }, 'Dinner': { dish: 'Pav Bhaji', likes: 140 } },
+                'Sunday': { 'Breakfast': { dish: 'Bread Jam', likes: 15 }, 'Lunch': { dish: 'Special Thali', likes: 180 }, 'Dinner': { dish: 'Chinese', likes: 210 } }
             };
 
-            // Mess Wishlist Logic
-            $scope.weeklyMenu = { 
-                'Monday': { 'Breakfast': { dish: 'Poha' }, 'Lunch': { dish: 'Dal Rice' }, 'Dinner': { dish: 'Paneer' } }, 
-                'Tuesday': { 'Breakfast': { dish: 'Paratha' }, 'Lunch': { dish: 'Rajma' }, 'Dinner': { dish: 'Mix Veg' } }, 
-                'Wednesday': { 'Breakfast': { dish: 'Idli' }, 'Lunch': { dish: 'Biryani' }, 'Dinner': { dish: 'Kadhi' } }, 
-                'Thursday': { 'Breakfast': { dish: 'Sandwich' }, 'Lunch': { dish: 'Chole' }, 'Dinner': { dish: 'Gobi' } }, 
-                'Friday': { 'Breakfast': { dish: 'Uttapam' }, 'Lunch': { dish: 'Black Dal' }, 'Dinner': { dish: 'Egg Curry' } }, 
-                'Saturday': { 'Breakfast': { dish: 'Puri Sabji' }, 'Lunch': { dish: 'Khichdi' }, 'Dinner': { dish: 'Pav Bhaji' } }, 
-                'Sunday': { 'Breakfast': { dish: 'Bread Jam' }, 'Lunch': { dish: 'Special Thali' }, 'Dinner': { dish: 'Chinese' } } 
-            };
-
-            $scope.likeMeal = function(day, mealType) {
-                // Individual toggling for breakfast, lunch, dinner
-                $scope.weeklyMenu[day][mealType].userLiked = !$scope.weeklyMenu[day][mealType].userLiked;
-            };
-
-            $scope.submitMessFeedback = function() {
-                let likedItems = [];
-                for (let day in $scope.weeklyMenu) {
-                    for (let meal in $scope.weeklyMenu[day]) {
-                        if ($scope.weeklyMenu[day][meal].userLiked) {
-                            likedItems.push(day + " (" + meal + "): " + $scope.weeklyMenu[day][meal].dish);
-                        }
-                    }
-                }
-
-                if(likedItems.length === 0) {
-                    alert("Please wishlist some meals before submitting feedback!");
-                    return;
-                }
-
-                let docContent = "MESS FEEDBACK DOCUMENT\nGenerated by AI Assistant\n--------------------------\nStudent: " + $scope.user.name + "\n\nPreferred Dishes for Next Month:\n- " + likedItems.join("\n- ");
-                
-                console.log(docContent); // Sending to "System"
-                alert("FEEDBACK DOCUMENT SENT!\n\nYour wishlist has been compiled into a report and sent to the Mess Committee Admin for menu planning.");
-            };
-
-            // Core functionality
             $scope.expenses = [{ date: new Date().toLocaleDateString(), item: 'Star Canteen (Samosa)', amount: 20, category: 'Canteen' }];
-            $scope.courses = [{ name: 'Data Structures'}, { name: 'Operating Systems'}, { name: 'Database Systems'}];
-            $scope.emails = [{ sender: 'Exam Cell', subject: 'Schedule', priority: 'High', prioValue: 3, time: '10:30 AM' }];
-            $scope.menuItems = [{ name: 'Veg Sandwich', price: 40 }, { name: 'Coffee', price: 15 }];
             
+            // UPDATED SMART INBOX LIST
+            $scope.emails = [
+                { sender: 'Exam Cell', subject: 'End-Term Examination Schedule', priority: 'High', prioValue: 3, time: '10:30 AM' },
+                { sender: 'HOD - CS', subject: 'Project Submission Link Active', priority: 'High', prioValue: 3, time: 'Yesterday' },
+                { sender: 'Accounts', subject: 'Pending Fees Reminder: Q3', priority: 'High', prioValue: 3, time: '2 Days Ago' },
+                { sender: 'Placement Cell', subject: 'Google Recruitment Drive - Register Now', priority: 'Medium', prioValue: 2, time: '11:45 AM' },
+                { sender: 'Library', subject: 'Book Overdue: "Clean Code"', priority: 'Medium', prioValue: 2, time: '3:00 PM' },
+                { sender: 'Sports Club', subject: 'Inter-College Selection Trials', priority: 'Medium', prioValue: 2, time: 'Yesterday' },
+                { sender: 'Cultural Committee', subject: 'Annual Fest Volunteer Meeting', priority: 'Normal', prioValue: 1, time: '9:00 AM' },
+                { sender: 'Canteen', subject: 'Special Menu for Friday', priority: 'Normal', prioValue: 1, time: 'Yesterday' },
+                { sender: 'Alumni Office', subject: 'Monthly Newsletter - Jan 2026', priority: 'Normal', prioValue: 1, time: '4 Days Ago' }
+            ];
+
+            $scope.menuItems = [{ name: 'Veg Sandwich', price: 40 }, { name: 'Coffee', price: 15 }, { name: 'Lunch Thali', price: 80 }];
+            $scope.activeOrders = [{ item: 'Coffee', status: 'Preparing', timeRemaining: 4 }];
+            $scope.events = [
+                { type: 'Academic', month: 'OCT', day: '28', title: 'Internal Exam - OS', time: '10:00 AM' }
+            ];
+
+            $scope.newExp = { category: 'Canteen' };
+            $scope.newEvent = { month: 'OCT' };
+
+            // LOGIC
             $scope.login = function() { $scope.isLoggedIn = true; };
             $scope.logout = function() { $scope.isLoggedIn = false; };
             $scope.setView = function(id) { $scope.currentView = id; };
             $scope.getViewTitle = function() { return $scope.tabs.find(t => t.id === $scope.currentView).name; };
+
             $scope.addExpense = function() {
-                $scope.expenses.unshift({ date: new Date().toLocaleDateString(), item: $scope.newExp.item, amount: $scope.newExp.amount, category: $scope.newExp.category });
+                if(!$scope.newExp.item || !$scope.newExp.amount) return;
+                $scope.expenses.unshift({ date: new Date().toLocaleDateString(), item: $scope.newExp.item, amount: parseFloat($scope.newExp.amount), category: $scope.newExp.category });
                 $scope.newExp = { category: 'Canteen' };
             };
-            $scope.deleteExpense = function(index) { $scope.expenses.splice(index, 1); };
+
+            $scope.deleteExpense = function(index) {
+                if(confirm("Delete this transaction?")) { $scope.expenses.splice(index, 1); }
+            };
+
             $scope.getTotalExpenses = function() { return $scope.expenses.reduce((sum, e) => sum + e.amount, 0); };
-            $scope.orderFood = function(item) { alert('Order Placed!'); };
+
+            $scope.likeMeal = function(day, meal) { 
+                if(!$scope.weeklyMenu[day][meal].userLiked) { $scope.weeklyMenu[day][meal].likes++; $scope.weeklyMenu[day][meal].userLiked = true; }
+            };
+
+            $scope.sendMessFeedback = function() {
+                let wishlistedItems = [];
+                angular.forEach($scope.weeklyMenu, function(meals, day) {
+                    angular.forEach(meals, function(details, type) {
+                        if (details.userLiked) {
+                            wishlistedItems.push(day + " " + type + ": " + details.dish);
+                        }
+                    });
+                });
+
+                if (wishlistedItems.length === 0) {
+                    alert("No items wishlisted yet! Please like some meals before sending feedback.");
+                } else {
+                    let message = "FEEDBACK TO OWNER:\n\nStudent " + $scope.user.name + " suggests keeping these wishlisted items in the permanent menu:\n\n- " + wishlistedItems.join("\n- ");
+                    alert(message + "\n\nFeedback form has been submitted successfully!");
+                }
+            };
+
+            $scope.orderFood = function(item) {
+                $scope.activeOrders.push({ item: item.name, status: 'Order Received', timeRemaining: 15 });
+                alert('Order Placed! Status: Received');
+            };
+
+            $scope.askProfessor = function(course) {
+                let q = prompt("Enter query for " + course);
+                if(q) alert("Your query will be solved within 24 hours.");
+            };
+            
+            $scope.downloadNotes = function(course) { alert("Downloading Revision Notes for " + course); };
+
+            $scope.addUserEvent = function() {
+                $scope.events.push({ type: 'Personal', month: $scope.newEvent.month, day: $scope.newEvent.day, title: $scope.newEvent.title, time: $scope.newEvent.time });
+                $scope.newEvent = { month: 'OCT' };
+            };
         });
     </script></body></html>
